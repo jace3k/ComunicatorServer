@@ -15,18 +15,38 @@ public class Server {
     public void startServer() {
         while (true) {
             try (ServerSocket s = new ServerSocket(8189)) {
+
                 Socket incoming = s.accept();
                 String name = "Klient " + counter;
                 ClientIn client = new ClientIn(name, incoming);
                 client_table.add(client);
                 counter++;
                 System.out.println("Klient połączony");
+
+
+
                 new Thread(new ClientThread(client)).start();
+
+                sendActiveUsers();
             } catch (Exception e) {
                 System.out.println("Błąd w startServer.");
             }
         }
     }
+
+    private void sendActiveUsers() throws IOException {
+        for(ClientIn c : client_table) {
+            PrintWriter pw = new PrintWriter(c.getSocket().getOutputStream(),true);
+            pw.println("qxqxstart");
+            for(ClientIn s : client_table) {
+                pw.println(s.getPort()+"~"+s.getName());
+                System.out.println("Aktywny: "+s.getName());
+            }
+            pw.println("qxqxend");
+        }
+        System.out.println("Rozesłano userów do wszystkich.");
+    }
+
 
     class ClientThread implements Runnable {
         ClientIn client;
@@ -40,8 +60,6 @@ public class Server {
                 Scanner in = new Scanner(client.getSocket().getInputStream());
                 PrintWriter out = new PrintWriter(client.getSocket().getOutputStream(),true);
                 out.println("Witaj na serwerze! <"+ client.getName()+">");
-
-                sendActiveUsers();
 
                 while(in.hasNextLine()) {
                     String line = in.nextLine();
@@ -60,23 +78,13 @@ public class Server {
                 }
                 System.out.println("Wątek zakończony.");
                 client_table.remove(client);
+
                 client.getSocket().close();
                 sendActiveUsers();
 
             } catch (Exception e) {
                 e.printStackTrace();
                 System.out.println("Błąd w run().");
-            }
-        }
-
-        private void sendActiveUsers() throws IOException {
-            for(ClientIn c : client_table) {
-                PrintWriter pw = new PrintWriter(c.getSocket().getOutputStream(),true);
-                pw.println("qxqxstart");
-                for(ClientIn s : client_table) {
-                    pw.println(s.getPort()+"~"+s.getName());
-                }
-                pw.println("qxqxend");
             }
         }
     }
