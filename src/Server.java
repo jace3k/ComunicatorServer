@@ -15,34 +15,49 @@ public class Server {
     public void startServer() {
         while (true) {
             try (ServerSocket s = new ServerSocket(8189)) {
-
                 Socket incoming = s.accept();
-                String name = "Klient " + counter;
-                ClientIn client = new ClientIn(name, incoming);
-                client_table.add(client);
-                counter++;
-                System.out.println("Klient połączony");
+                String name = getClientName(incoming);
+                boolean found = false;
+                for(ClientIn c : client_table) {
+                    if(c.getName().equals(name)) {
+                        found = true;
+                    }
+                }
+                if(!found) {
+                    ClientIn client = new ClientIn(name, incoming);
+                    client_table.add(client);
+                    counter++;
+                    System.out.println("Klient połączony");
 
+                    new Thread(new ClientThread(client)).start();
 
-
-                new Thread(new ClientThread(client)).start();
-
-                sendActiveUsers();
+                    sendActiveUsers();
+                } else {
+                    System.out.println("Nazwa już istnieje! Odrzucam.");
+                    incoming.close();
+                }
             } catch (Exception e) {
                 System.out.println("Błąd w startServer.");
             }
         }
     }
 
-    private void sendActiveUsers() throws IOException {
+    private String getClientName(Socket s) throws IOException {
+        Scanner scanner = new Scanner(s.getInputStream());
+        String line = scanner.nextLine();
+        //scanner.close();
+        return line;
+    }
+
+    private synchronized void sendActiveUsers() throws IOException {
         for(ClientIn c : client_table) {
             PrintWriter pw = new PrintWriter(c.getSocket().getOutputStream(),true);
-            pw.println("qxqxstart");
+            pw.println("~qxqxstart");
             for(ClientIn s : client_table) {
                 pw.println(s.getPort()+"~"+s.getName());
                 System.out.println("Aktywny: "+s.getName());
             }
-            pw.println("qxqxend");
+            pw.println("~qxqxend");
         }
         System.out.println("Rozesłano userów do wszystkich.");
     }
@@ -64,20 +79,20 @@ public class Server {
                 while(in.hasNextLine()) {
                     String line = in.nextLine();
                     System.out.println("Wiadomość: " + line);
-
+                    String splitLine[] = line.split("~");
                     for(ClientIn cl : client_table) {
-                        String splitLine[] = line.split("~");
-                        if(cl.getPort() == Integer.parseInt(splitLine[0])) {
+
+                        if(cl.getPort() == Integer.parseInt(splitLine[1])) {
                             PrintWriter writer = new PrintWriter(cl.getSocket().getOutputStream(), true);
 
-                            writer.println(client.getName() + ": " + splitLine[1]);
-                            out.println(client.getName() + ": " + splitLine[1]);
+                            writer.println(client.getName() + ": " + splitLine[2]);
+                            out.println(client.getName() + ": " + splitLine[2]);
                             System.out.println(client.getName() + " wysłał do "+ cl.getName());
                         }
                     }
                 }
                 System.out.println("Wątek zakończony.");
-                client_table.remove(client);
+                remove(client);
 
                 client.getSocket().close();
                 sendActiveUsers();
@@ -86,6 +101,9 @@ public class Server {
                 e.printStackTrace();
                 System.out.println("Błąd w run().");
             }
+        }
+        private synchronized void remove(ClientIn cli) {
+            client_table.remove(cli);
         }
     }
 }
