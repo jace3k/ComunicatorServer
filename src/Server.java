@@ -80,14 +80,28 @@ public class Server {
                     String line = in.nextLine();
                     System.out.println("Wiadomość: " + line);
                     String splitLine[] = line.split("~");
+
+
                     for(ClientIn cl : client_table) {
 
                         if(cl.getPort() == Integer.parseInt(splitLine[1])) {
                             PrintWriter writer = new PrintWriter(cl.getSocket().getOutputStream(), true);
 
+                            if(splitLine[0].equals("1")) {
+                                writer.println(splitLine[2]);
+                                System.out.println("Pisze.......");
+                                continue;
+                            }
+
+
                             writer.println(client.getName() + ": " + splitLine[2]);
                             out.println(client.getName() + ": " + splitLine[2]);
                             System.out.println(client.getName() + " wysłał do "+ cl.getName());
+
+                            /// teraz do historii
+
+                            client.history.put(splitLine[2], client.getPort());
+                            cl.history.put(splitLine[2], client.getPort());
                         }
                     }
                 }
@@ -100,6 +114,8 @@ public class Server {
             } catch (Exception e) {
                 e.printStackTrace();
                 System.out.println("Błąd w run().");
+            } {
+
             }
         }
         private synchronized void remove(ClientIn cli) {
